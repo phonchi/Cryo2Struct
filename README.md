@@ -118,11 +118,20 @@ python3 cryo2struct.py --density_map_name 34610
 ```
 
 4. <ins>**Output**</ins>:  **Modeled atomic structure**
-The output model is saved in the density map's directory. The modeled atomic structure for this example is saved as [input/34610/34610_cryo2struct_full_conf_score.pdb](input/34610/34610_cryo2struct_full_conf_score.pdb). To visualize the structure, use [UCSF ChimeraX](https://www.cgl.ucsf.edu/chimerax/index.html). To enable the color spectrum (confidence score) in UCSF ChimeraX, navigate to Tools > Depiction > Render by Attribute and select 'bfactor' as the attribute. It took 9.19 minutes to model the structure for cryo-EM density map ``34610``. 
+The output model is saved in the density map's directory. The modeled atomic structure for this example is saved as [input/34610/34610_cryo2struct_full_conf_score.pdb](input/34610/34610_cryo2struct_full_conf_score.pdb). To visualize the structure, use [UCSF ChimeraX](https://www.cgl.ucsf.edu/chimerax/index.html). To enable the color spectrum (confidence score) in UCSF ChimeraX, navigate to Tools > Depiction > Render by Attribute and select 'bfactor' as the attribute. It took 9.19 minutes to model the structure for cryo-EM density map ``34610``.
+
+The run also produces several additional files (``<mode>`` corresponds to the value of ``use_sequence`` in ``config/arguments.yml``):
+
+ - ``*_cryo2struct_confidence_scores.csv`` – final confidence score for each residue.
+ - ``*_cryo2struct_prob_scores.csv`` – raw probability scores from the neural network.
+ - ``*_hmm_<mode>.txt`` – backbone alignment report from the HMM step.
+ - ``*_cryo2struct_<mode>.pdb`` – predicted atomic coordinates.
+ - ``*_cryo2struct_<mode>_conf_score.pdb`` – same structure with confidence scores in the B-factor column.
+ - ``*_cryo2struct_conf_scores.png`` – plot of confidence values along the sequence.
 
 
-5. <ins>**Confidence Scores**</ins>: 
-Cryo2Struct provides a per-residue estimation of confidence within the range of [0, 1] for both carbon-alpha and amino acid type predictions. An example confidence score file and plot are available in [input/34610/](input/34610/). 
+5. <ins>**Confidence Scores**</ins>:
+Cryo2Struct provides a per-residue estimation of confidence within the range of [0, 1] for both carbon-alpha and amino acid type predictions. An example confidence score file and plot are available in [input/34610/](input/34610/).
 
 ## Evaluation
 The evaluation results presented in the paper is computed using [Phenix's chain_comparison tool](https://phenix-online.org/documentation/reference/chain_comparison.html) and [US-align](https://zhanggroup.org/US-align/). US-align can be run in it's web server, however, the Phenix needs to be installed locally to compute the metrics. After installation of Phenix tool, run the following:
