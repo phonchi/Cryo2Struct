@@ -140,6 +140,15 @@ The evaluation results presented in the paper is computed using [Phenix's chain_
 phenix.chain_comparison target.pdb query.pdb
 ```
 
+Cryo2Struct also provides a small utility to compute the intersection over union
+(IoU) between a predicted segmentation volume and its ground-truth labels. Run
+the following command with your prediction and label maps in MRC format:
+
+```
+python3 evaluation/compute_iou.py prediction.mrc label.mrc
+```
+This script prints the IoU score for each class as well as the average IoU.
+
 
 
 
