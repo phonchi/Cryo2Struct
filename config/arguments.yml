@@ -3,7 +3,7 @@ input_data_dir: '/content/Cryo2Struct/input' # provide absolute path of input di
 amino_checkpoint: '/content/Cryo2Struct/models/amino_acid_type.ckpt' # provide absolute path of amino acid checkpoint
 atom_checkpoint: '/content/Cryo2Struct/models/atom_type.ckpt' # provide absolute path of atom checkpoint
 confidence_score_models: '/content/Cryo2Struct/models' # provide absolute path of models directory
-infer_run_on: 'cpu' # options- cpu or gpu
+infer_run_on: 'gpu' # options- cpu or gpu
 infer_on_gpu: 0
 threshold: 0.4 # threshold for picking carbon alpha atoms
 clustering_threshold: 2 # clustering proximity
