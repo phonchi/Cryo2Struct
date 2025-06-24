@@ -257,23 +257,23 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
         save_confidence_score = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_confidence_scores.csv"
         save_prob_score = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_prob_scores.csv"
         save_conf_score_plot = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_conf_scores.png"
-        if os.path.exists(save_confidence_score):
-            os.remove(save_confidence_score)
+        # if os.path.exists(save_confidence_score):
+        #     os.remove(save_confidence_score)
 
-        if os.path.exists(save_prob_score):
-            os.remove(save_prob_score)
+        # if os.path.exists(save_prob_score):
+        #     os.remove(save_prob_score)
 
-        if os.path.exists(hmm_out_save_file):
-            os.remove(hmm_out_save_file)
+        # if os.path.exists(hmm_out_save_file):
+        #     os.remove(hmm_out_save_file)
 
-        if os.path.exists(save_pdb_file):
-            os.remove(save_pdb_file)
+        # if os.path.exists(save_pdb_file):
+        #     os.remove(save_pdb_file)
 
-        if os.path.exists(conf_score_pdb_file):
-            os.remove(conf_score_pdb_file)
+        # if os.path.exists(conf_score_pdb_file):
+        #     os.remove(conf_score_pdb_file)
 
-        if os.path.exists(save_conf_score_plot):
-            os.remove(save_conf_score_plot)
+        # if os.path.exists(save_conf_score_plot):
+        #     os.remove(save_conf_score_plot)
             
         hmm_outs = open(hmm_out_save_file, 'a')
         for i in range(len(exclude_states)):     
@@ -294,8 +294,8 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
         if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc"):
             os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc")
         files_to_delete = glob.glob(os.path.join(map_directory_path, f"*.txt"))
-        for f in files_to_delete:
-            os.remove(f)
+        # for f in files_to_delete:
+        #     os.remove(f)
         print("Cryo2Struct: Finished!\n")
         ami_list = list()
         ca_list = list()
