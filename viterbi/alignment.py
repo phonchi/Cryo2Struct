@@ -289,11 +289,11 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
 
         # clean up:
         map_directory_path = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}"
-        if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc"):
-            os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc")
-        if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc"):
-            os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc")
-        files_to_delete = glob.glob(os.path.join(map_directory_path, f"*.txt"))
+        # if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc"):
+        #     os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_amino_predicted.mrc")
+        # if os.path.exists(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc"):
+        #     os.remove(f"{map_directory_path}/{config_dict['density_map_name']}_atom_predicted.mrc")
+        # files_to_delete = glob.glob(os.path.join(map_directory_path, f"*.txt"))
         # for f in files_to_delete:
         #     os.remove(f)
         print("Cryo2Struct: Finished!\n")
