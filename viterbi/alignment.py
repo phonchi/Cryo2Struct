@@ -250,13 +250,34 @@ def run_vitebi(key_idx, chain_observations, transition_matrix, emission_matrix, 
     if key_idx < len(seq_key_list):
         execute(key_idx=key_idx, states=states,transition_matrix=transition_matrix, emission_matrix=emission_matrix, config_dict=config_dict, save_ca_probs=save_ca_probs, emission_matrix_dl=emission_matrix_dl)
     else:
-        cord_file = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cluster_transition_ca.txt"
-        hmm_out_save_file = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_hmm_{config_dict['use_sequence']}.txt"
-        save_pdb_file = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_{config_dict['use_sequence']}.pdb"
-        conf_score_pdb_file = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_{config_dict['use_sequence']}_conf_score.pdb"
-        save_confidence_score = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_confidence_scores.csv"
-        save_prob_score = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_prob_scores.csv"
-        save_conf_score_plot = f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/{config_dict['density_map_name']}_cryo2struct_conf_scores.png"
+        cord_file = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cluster_transition_ca.txt"  # CA cluster centroids
+        )
+        hmm_out_save_file = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_hmm_{config_dict['use_sequence']}.txt"  # residue->state assignments
+        )
+        save_pdb_file = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cryo2struct_{config_dict['use_sequence']}.pdb"  # predicted model
+        )
+        conf_score_pdb_file = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cryo2struct_{config_dict['use_sequence']}_conf_score.pdb"  # model with B-factors
+        )
+        save_confidence_score = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cryo2struct_confidence_scores.csv"  # final confidence table
+        )
+        save_prob_score = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cryo2struct_prob_scores.csv"  # intermediate probabilities
+        )
+        save_conf_score_plot = (
+            f"{config_dict['input_data_dir']}/{config_dict['density_map_name']}/"
+            f"{config_dict['density_map_name']}_cryo2struct_conf_scores.png"  # scatter plot of confidences
+        )
         # if os.path.exists(save_confidence_score):
         #     os.remove(save_confidence_score)
 
