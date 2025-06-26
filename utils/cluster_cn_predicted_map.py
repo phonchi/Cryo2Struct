@@ -5,14 +5,14 @@ import math
 import mrcfile
 import numpy as np
 
-from utils.clustering_centroid import Point, create_clusters
 
-
-class WeightedPoint(Point):
-    """Point with an associated probability for clustering."""
+class WeightedPoint:
+    """Simple 3D point with an associated probability."""
 
     def __init__(self, x: float, y: float, z: float, prob: float):
-        super().__init__(x, y, z)
+        self.x = x
+        self.y = y
+        self.z = z
         self.prob = prob
 
 
@@ -38,23 +38,51 @@ def parse_probabilities(prob_file: str, prob_threshold: float):
     return ca_points, n_points, c_points
 
 
-def centroids_from_clusters(clusters):
-    """Return (x, y, z, avg_prob) tuples for each cluster."""
-    results = []
-    for cluster in clusters:
-        xs = [p.x for p in cluster]
-        ys = [p.y for p in cluster]
-        zs = [p.z for p in cluster]
-        ps = [p.prob for p in cluster]
-        results.append(
-            (
-                sum(xs) / len(xs),
-                sum(ys) / len(ys),
-                sum(zs) / len(zs),
-                sum(ps) / len(ps),
-            )
-        )
-    return results
+def nms(points, radius):
+    """Simple 3D non-maximum suppression."""
+    if not points:
+        return []
+    points = sorted(points, key=lambda p: p.prob, reverse=True)
+    selected = []
+    r2 = radius * radius
+    for p in points:
+        keep = True
+        for q in selected:
+            dx = p.x - q.x
+            dy = p.y - q.y
+            dz = p.z - q.z
+            if dx * dx + dy * dy + dz * dz <= r2:
+                keep = False
+                break
+        if keep:
+            selected.append(p)
+    return [(pt.x, pt.y, pt.z, pt.prob) for pt in selected]
+
+
+def cluster(points, radius):
+    """Group nearby points and return their centroids with average probability."""
+    pts = points[:]
+    clusters = []
+    r2 = radius * radius
+    while pts:
+        cluster_members = [pts.pop(0)]
+        i = 0
+        while i < len(pts):
+            p = pts[i]
+            c = cluster_members[0]
+            dx = p.x - c.x
+            dy = p.y - c.y
+            dz = p.z - c.z
+            if dx * dx + dy * dy + dz * dz <= r2:
+                cluster_members.append(pts.pop(i))
+            else:
+                i += 1
+        x_avg = sum(p.x for p in cluster_members) / len(cluster_members)
+        y_avg = sum(p.y for p in cluster_members) / len(cluster_members)
+        z_avg = sum(p.z for p in cluster_members) / len(cluster_members)
+        p_avg = sum(p.prob for p in cluster_members) / len(cluster_members)
+        clusters.append((x_avg, y_avg, z_avg, p_avg))
+    return clusters
 
 
 def write_centroid_file(centroids, out_path):
@@ -96,25 +124,28 @@ def write_mrc(ca_centroids, n_centroids, c_centroids, ref_map, out_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Cluster atom predictions and create a labeled map")
+    parser = argparse.ArgumentParser(
+        description="Cluster atom predictions or apply NMS to create a labeled map"
+    )
     parser.add_argument("prob_file", help="probabilities_atom.txt produced by inference")
     parser.add_argument("reference_map", help="reference MRC map for shape and metadata")
-    parser.add_argument("output", help="output MRC file with clustered atoms")
+    parser.add_argument("output", help="output MRC file with suppressed atoms")
     parser.add_argument("--ca_txt", help="optional output file for CA centroids")
     parser.add_argument("--n_txt", help="optional output file for N centroids")
     parser.add_argument("--c_txt", help="optional output file for C centroids")
     parser.add_argument("--prob_threshold", type=float, default=0.4, help="minimum probability to keep a voxel")
-    parser.add_argument("--cluster_threshold", type=float, default=2.0, help="distance threshold for clustering")
-    args = parser.parse_args()
+    parser.add_argument("--cluster_radius", type=float, default=2.0, help="radius for simple clustering")
+    parser.add_argument("--nms_radius", type=float, default=0.0, help="if >0, perform non-max suppression with this radius")
 
     ca_pts, n_pts, c_pts = parse_probabilities(args.prob_file, args.prob_threshold)
-    ca_clusters = create_clusters(ca_pts, args.cluster_threshold)
-    n_clusters = create_clusters(n_pts, args.cluster_threshold)
-    c_clusters = create_clusters(c_pts, args.cluster_threshold)
-
-    ca_centroids = centroids_from_clusters(ca_clusters)
-    n_centroids = centroids_from_clusters(n_clusters)
-    c_centroids = centroids_from_clusters(c_clusters)
+    if args.nms_radius > 0:
+        ca_centroids = nms(ca_pts, args.nms_radius)
+        n_centroids = nms(n_pts, args.nms_radius)
+        c_centroids = nms(c_pts, args.nms_radius)
+    else:
+        ca_centroids = cluster(ca_pts, args.cluster_radius)
+        n_centroids = cluster(n_pts, args.cluster_radius)
+        c_centroids = cluster(c_pts, args.cluster_radius)
 
     write_mrc(ca_centroids, n_centroids, c_centroids, args.reference_map, args.output)
     write_centroid_file(ca_centroids, args.ca_txt)
