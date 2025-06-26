@@ -4,15 +4,17 @@ import math
 
 import mrcfile
 import numpy as np
+from scipy.spatial import cKDTree
 
 
-class WeightedPoint:
-    """Simple 3D point with an associated probability."""
+from utils.clustering_centroid import Point, create_clusters
+
+
+class WeightedPoint(Point):
+    """Point with an associated probability for clustering."""
 
     def __init__(self, x: float, y: float, z: float, prob: float):
-        self.x = x
-        self.y = y
-        self.z = z
+        super().__init__(x, y, z)
         self.prob = prob
 
 
@@ -38,51 +40,63 @@ def parse_probabilities(prob_file: str, prob_threshold: float):
     return ca_points, n_points, c_points
 
 
-def nms(points, radius):
-    """Simple 3D non-maximum suppression."""
-    if not points:
-        return []
+
+def nms_basic(points, radius):
+    """Simple NMS that iteratively suppresses neighbors within ``radius``."""
+    if radius <= 0:
+        return points
     points = sorted(points, key=lambda p: p.prob, reverse=True)
-    selected = []
-    r2 = radius * radius
+    kept = []
     for p in points:
         keep = True
-        for q in selected:
-            dx = p.x - q.x
-            dy = p.y - q.y
-            dz = p.z - q.z
-            if dx * dx + dy * dy + dz * dz <= r2:
+        for q in kept:
+            if math.dist((p.x, p.y, p.z), (q.x, q.y, q.z)) <= radius:
                 keep = False
                 break
         if keep:
-            selected.append(p)
-    return [(pt.x, pt.y, pt.z, pt.prob) for pt in selected]
+            kept.append(p)
+    return kept
 
 
-def cluster(points, radius):
-    """Group nearby points and return their centroids with average probability."""
-    pts = points[:]
-    clusters = []
-    r2 = radius * radius
-    while pts:
-        cluster_members = [pts.pop(0)]
-        i = 0
-        while i < len(pts):
-            p = pts[i]
-            c = cluster_members[0]
-            dx = p.x - c.x
-            dy = p.y - c.y
-            dz = p.z - c.z
-            if dx * dx + dy * dy + dz * dz <= r2:
-                cluster_members.append(pts.pop(i))
-            else:
-                i += 1
-        x_avg = sum(p.x for p in cluster_members) / len(cluster_members)
-        y_avg = sum(p.y for p in cluster_members) / len(cluster_members)
-        z_avg = sum(p.z for p in cluster_members) / len(cluster_members)
-        p_avg = sum(p.prob for p in cluster_members) / len(cluster_members)
-        clusters.append((x_avg, y_avg, z_avg, p_avg))
-    return clusters
+def nms_kdtree(points, radius):
+    """Efficient NMS using a cKDTree for neighbor queries."""
+    if radius <= 0 or not points:
+        return points
+
+    coords = np.array([(p.x, p.y, p.z) for p in points])
+    probs = np.array([p.prob for p in points])
+    order = np.argsort(-probs)
+    tree = cKDTree(coords)
+    suppressed = np.zeros(len(points), dtype=bool)
+    kept = []
+
+    for idx in order:
+        if suppressed[idx]:
+            continue
+        kept.append(points[idx])
+        neighbors = tree.query_ball_point(coords[idx], r=radius)
+        suppressed[neighbors] = True
+
+    return kept
+
+
+def centroids_from_clusters(clusters):
+    """Return (x, y, z, avg_prob) tuples for each cluster."""
+    results = []
+    for cluster in clusters:
+        xs = [p.x for p in cluster]
+        ys = [p.y for p in cluster]
+        zs = [p.z for p in cluster]
+        ps = [p.prob for p in cluster]
+        results.append(
+            (
+                sum(xs) / len(xs),
+                sum(ys) / len(ys),
+                sum(zs) / len(zs),
+                sum(ps) / len(ps),
+            )
+        )
+    return results
 
 
 def write_centroid_file(centroids, out_path):
@@ -134,18 +148,32 @@ def main():
     parser.add_argument("--n_txt", help="optional output file for N centroids")
     parser.add_argument("--c_txt", help="optional output file for C centroids")
     parser.add_argument("--prob_threshold", type=float, default=0.4, help="minimum probability to keep a voxel")
-    parser.add_argument("--cluster_radius", type=float, default=2.0, help="radius for simple clustering")
-    parser.add_argument("--nms_radius", type=float, default=0.0, help="if >0, perform non-max suppression with this radius")
+    parser.add_argument("--cluster_threshold", type=float, default=2.0, help="distance threshold for clustering")
+    parser.add_argument("--nms_radius", type=float, default=0.0, help="apply non-maximum suppression with this radius")
+    parser.add_argument(
+        "--nms_method",
+        choices=["basic", "kdtree"],
+        default="basic",
+        help="NMS implementation to use when --nms_radius > 0",
+    )
+    args = parser.parse_args()
 
     ca_pts, n_pts, c_pts = parse_probabilities(args.prob_file, args.prob_threshold)
+
     if args.nms_radius > 0:
-        ca_centroids = nms(ca_pts, args.nms_radius)
-        n_centroids = nms(n_pts, args.nms_radius)
-        c_centroids = nms(c_pts, args.nms_radius)
-    else:
-        ca_centroids = cluster(ca_pts, args.cluster_radius)
-        n_centroids = cluster(n_pts, args.cluster_radius)
-        c_centroids = cluster(c_pts, args.cluster_radius)
+        nms_func = nms_kdtree if args.nms_method == "kdtree" else nms_basic
+        ca_pts = nms_func(ca_pts, args.nms_radius)
+        n_pts = nms_func(n_pts, args.nms_radius)
+        c_pts = nms_func(c_pts, args.nms_radius)
+
+    ca_clusters = create_clusters(ca_pts, args.cluster_threshold)
+    n_clusters = create_clusters(n_pts, args.cluster_threshold)
+    c_clusters = create_clusters(c_pts, args.cluster_threshold)
+
+    ca_centroids = centroids_from_clusters(ca_clusters)
+    n_centroids = centroids_from_clusters(n_clusters)
+    c_centroids = centroids_from_clusters(c_clusters)
+
 
     write_mrc(ca_centroids, n_centroids, c_centroids, args.reference_map, args.output)
     write_centroid_file(ca_centroids, args.ca_txt)

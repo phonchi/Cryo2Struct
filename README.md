@@ -151,6 +151,18 @@ python3 evaluation/compute_iou.py prediction.mrc label.mrc --radius 1
 ```
 This script prints the IoU score for each class as well as the average IoU.
 
+## Clustering Predictions
+The script [utils/cluster_cn_predicted_map.py](utils/cluster_cn_predicted_map.py)
+clusters predicted atom locations into a labeled MRC map. When ``--nms_radius``
+is greater than zero, the program performs non-maximum suppression. The
+``--nms_method`` option chooses between the basic algorithm and a faster
+KD-tree implementation:
+
+```bash
+python3 utils/cluster_cn_predicted_map.py prob.txt map.mrc out.mrc \
+    --nms_radius 1.5 --nms_method kdtree
+```
+
 
 
 
