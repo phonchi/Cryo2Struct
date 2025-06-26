@@ -4,6 +4,7 @@ import math
 
 import mrcfile
 import numpy as np
+from scipy.spatial import cKDTree
 
 from utils.clustering_centroid import Point, create_clusters
 
@@ -36,6 +37,45 @@ def parse_probabilities(prob_file: str, prob_threshold: float):
             if c_p >= prob_threshold:
                 c_points.append(WeightedPoint(x, y, z, c_p))
     return ca_points, n_points, c_points
+
+
+def nms_basic(points, radius):
+    """Simple NMS that iteratively suppresses neighbors within ``radius``."""
+    if radius <= 0:
+        return points
+    points = sorted(points, key=lambda p: p.prob, reverse=True)
+    kept = []
+    for p in points:
+        keep = True
+        for q in kept:
+            if math.dist((p.x, p.y, p.z), (q.x, q.y, q.z)) <= radius:
+                keep = False
+                break
+        if keep:
+            kept.append(p)
+    return kept
+
+
+def nms_kdtree(points, radius):
+    """Efficient NMS using a cKDTree for neighbor queries."""
+    if radius <= 0 or not points:
+        return points
+
+    coords = np.array([(p.x, p.y, p.z) for p in points])
+    probs = np.array([p.prob for p in points])
+    order = np.argsort(-probs)
+    tree = cKDTree(coords)
+    suppressed = np.zeros(len(points), dtype=bool)
+    kept = []
+
+    for idx in order:
+        if suppressed[idx]:
+            continue
+        kept.append(points[idx])
+        neighbors = tree.query_ball_point(coords[idx], r=radius)
+        suppressed[neighbors] = True
+
+    return kept
 
 
 def centroids_from_clusters(clusters):
@@ -105,9 +145,23 @@ def main():
     parser.add_argument("--c_txt", help="optional output file for C centroids")
     parser.add_argument("--prob_threshold", type=float, default=0.4, help="minimum probability to keep a voxel")
     parser.add_argument("--cluster_threshold", type=float, default=2.0, help="distance threshold for clustering")
+    parser.add_argument("--nms_radius", type=float, default=0.0, help="apply non-maximum suppression with this radius")
+    parser.add_argument(
+        "--nms_method",
+        choices=["basic", "kdtree"],
+        default="basic",
+        help="NMS implementation to use when --nms_radius > 0",
+    )
     args = parser.parse_args()
 
     ca_pts, n_pts, c_pts = parse_probabilities(args.prob_file, args.prob_threshold)
+
+    if args.nms_radius > 0:
+        nms_func = nms_kdtree if args.nms_method == "kdtree" else nms_basic
+        ca_pts = nms_func(ca_pts, args.nms_radius)
+        n_pts = nms_func(n_pts, args.nms_radius)
+        c_pts = nms_func(c_pts, args.nms_radius)
+
     ca_clusters = create_clusters(ca_pts, args.cluster_threshold)
     n_clusters = create_clusters(n_pts, args.cluster_threshold)
     c_clusters = create_clusters(c_pts, args.cluster_threshold)
