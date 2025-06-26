@@ -69,9 +69,10 @@ def write_centroid_file(centroids, out_path):
 def write_mrc(ca_centroids, n_centroids, c_centroids, ref_map, out_path):
     with mrcfile.open(ref_map, mode="r") as m:
         data = np.zeros_like(m.data, dtype=np.int16)
-        x_origin = m.header.origin["x"]
-        y_origin = m.header.origin["y"]
-        z_origin = m.header.origin["z"]
+        origin = m.header.origin  # preserve the reference origin record
+        x_origin = origin["x"]
+        y_origin = origin["y"]
+        z_origin = origin["z"]
         x_voxel = m.voxel_size["x"]
         y_voxel = m.voxel_size["y"]
         z_voxel = m.voxel_size["z"]
@@ -90,8 +91,8 @@ def write_mrc(ca_centroids, n_centroids, c_centroids, ref_map, out_path):
 
     with mrcfile.new(out_path, overwrite=True) as m:
         m.set_data(data.astype(np.float32))
-        m.voxel_size = (x_voxel, y_voxel, z_voxel)
-        m.header.origin = {"x": x_origin, "y": y_origin, "z": z_origin}
+        m.voxel_size = x_voxel
+        m.header.origin = origin
 
 
 def main():
