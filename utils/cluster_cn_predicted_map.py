@@ -6,6 +6,7 @@ import mrcfile
 import numpy as np
 from scipy.spatial import cKDTree
 
+
 from utils.clustering_centroid import Point, create_clusters
 
 
@@ -37,6 +38,7 @@ def parse_probabilities(prob_file: str, prob_threshold: float):
             if c_p >= prob_threshold:
                 c_points.append(WeightedPoint(x, y, z, c_p))
     return ca_points, n_points, c_points
+
 
 
 def nms_basic(points, radius):
@@ -136,10 +138,12 @@ def write_mrc(ca_centroids, n_centroids, c_centroids, ref_map, out_path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Cluster atom predictions and create a labeled map")
+    parser = argparse.ArgumentParser(
+        description="Cluster atom predictions or apply NMS to create a labeled map"
+    )
     parser.add_argument("prob_file", help="probabilities_atom.txt produced by inference")
     parser.add_argument("reference_map", help="reference MRC map for shape and metadata")
-    parser.add_argument("output", help="output MRC file with clustered atoms")
+    parser.add_argument("output", help="output MRC file with suppressed atoms")
     parser.add_argument("--ca_txt", help="optional output file for CA centroids")
     parser.add_argument("--n_txt", help="optional output file for N centroids")
     parser.add_argument("--c_txt", help="optional output file for C centroids")
@@ -169,6 +173,7 @@ def main():
     ca_centroids = centroids_from_clusters(ca_clusters)
     n_centroids = centroids_from_clusters(n_clusters)
     c_centroids = centroids_from_clusters(c_clusters)
+
 
     write_mrc(ca_centroids, n_centroids, c_centroids, args.reference_map, args.output)
     write_centroid_file(ca_centroids, args.ca_txt)
