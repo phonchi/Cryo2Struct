@@ -8,6 +8,7 @@ from scipy.spatial import cKDTree
 
 
 from utils.clustering_centroid import Point, create_clusters
+from utils.advanced_clustering import AdvancedClusteringMethods, WeightedPoint
 
 
 class WeightedPoint(Point):
@@ -16,6 +17,36 @@ class WeightedPoint(Point):
     def __init__(self, x: float, y: float, z: float, prob: float):
         super().__init__(x, y, z)
         self.prob = prob
+    
+    def to_array(self):
+        """Convert to numpy array for clustering algorithms."""
+        return np.array([self.x, self.y, self.z])
+
+
+def advanced_clustering(points, method='dbscan', **kwargs):
+    """
+    Apply advanced clustering methods to points.
+    
+    Args:
+        points: List of WeightedPoint objects
+        method: Clustering method ('dbscan', 'gmm', 'weighted_kmeans', 'hierarchical', 
+                'adaptive_dbscan', 'probability_weighted_dbscan', 'auto')
+        **kwargs: Method-specific parameters
+    
+    Returns:
+        List of clusters (each cluster is a list of WeightedPoint objects)
+    """
+    if not points:
+        return []
+    
+    clustering = AdvancedClusteringMethods()
+    
+    if method == 'auto':
+        result = clustering.select_best_method(points, **kwargs)
+    else:
+        result = clustering.cluster_points(points, method, **kwargs)
+    
+    return result.clusters
 
 
 def get_index(cord: float, origin: float, voxel: float) -> int:
@@ -80,22 +111,45 @@ def nms_kdtree(points, radius):
     return kept
 
 
-def centroids_from_clusters(clusters):
-    """Return (x, y, z, avg_prob) tuples for each cluster."""
+def centroids_from_clusters(clusters, use_probability_weighting=True):
+    """
+    Return (x, y, z, avg_prob) tuples for each cluster.
+    
+    Args:
+        clusters: List of clusters (each cluster is a list of WeightedPoint objects)
+        use_probability_weighting: Whether to use probability-weighted centroids
+    """
     results = []
     for cluster in clusters:
-        xs = [p.x for p in cluster]
-        ys = [p.y for p in cluster]
-        zs = [p.z for p in cluster]
-        ps = [p.prob for p in cluster]
-        results.append(
-            (
-                sum(xs) / len(xs),
-                sum(ys) / len(ys),
-                sum(zs) / len(zs),
-                sum(ps) / len(ps),
+        if not cluster:
+            continue
+        
+        if use_probability_weighting:
+            # Compute probability-weighted centroid
+            total_weight = sum(p.prob for p in cluster)
+            if total_weight == 0:
+                total_weight = len(cluster)
+            
+            weighted_x = sum(p.x * p.prob for p in cluster) / total_weight
+            weighted_y = sum(p.y * p.prob for p in cluster) / total_weight
+            weighted_z = sum(p.z * p.prob for p in cluster) / total_weight
+            avg_prob = sum(p.prob for p in cluster) / len(cluster)
+            
+            results.append((weighted_x, weighted_y, weighted_z, avg_prob))
+        else:
+            # Simple average centroid
+            xs = [p.x for p in cluster]
+            ys = [p.y for p in cluster]
+            zs = [p.z for p in cluster]
+            ps = [p.prob for p in cluster]
+            results.append(
+                (
+                    sum(xs) / len(xs),
+                    sum(ys) / len(ys),
+                    sum(zs) / len(zs),
+                    sum(ps) / len(ps),
+                )
             )
-        )
     return results
 
 
@@ -156,6 +210,19 @@ def main():
         default="basic",
         help="NMS implementation to use when --nms_radius > 0",
     )
+    parser.add_argument(
+        "--clustering_method",
+        choices=["legacy", "dbscan", "gmm", "weighted_kmeans", "hierarchical", "adaptive_dbscan", "probability_weighted_dbscan", "auto"],
+        default="legacy",
+        help="clustering method to use",
+    )
+    parser.add_argument("--dbscan_eps", type=float, default=2.0, help="DBSCAN epsilon parameter")
+    parser.add_argument("--dbscan_min_samples", type=int, default=2, help="DBSCAN minimum samples parameter")
+    parser.add_argument("--gmm_components", type=int, default=None, help="GMM number of components (auto if not set)")
+    parser.add_argument("--kmeans_clusters", type=int, default=None, help="K-means number of clusters (auto if not set)")
+    parser.add_argument("--hierarchical_clusters", type=int, default=None, help="Hierarchical clustering number of clusters (auto if not set)")
+    parser.add_argument("--use_probability_weighting", action="store_true", help="use probability-weighted centroids")
+    parser.add_argument("--clustering_report", help="optional file to save clustering quality report")
     args = parser.parse_args()
 
     ca_pts, n_pts, c_pts = parse_probabilities(args.prob_file, args.prob_threshold)
@@ -166,14 +233,70 @@ def main():
         n_pts = nms_func(n_pts, args.nms_radius)
         c_pts = nms_func(c_pts, args.nms_radius)
 
-    ca_clusters = create_clusters(ca_pts, args.cluster_threshold)
-    n_clusters = create_clusters(n_pts, args.cluster_threshold)
-    c_clusters = create_clusters(c_pts, args.cluster_threshold)
+    # Apply clustering
+    if args.clustering_method == "legacy":
+        # Use original clustering method for backward compatibility
+        ca_clusters = create_clusters(ca_pts, args.cluster_threshold)
+        n_clusters = create_clusters(n_pts, args.cluster_threshold)
+        c_clusters = create_clusters(c_pts, args.cluster_threshold)
+    else:
+        # Use advanced clustering methods
+        clustering_kwargs = {}
+        
+        if args.clustering_method == "dbscan":
+            clustering_kwargs = {
+                'eps': args.dbscan_eps,
+                'min_samples': args.dbscan_min_samples,
+                'use_probabilities': True
+            }
+        elif args.clustering_method == "gmm":
+            clustering_kwargs = {
+                'n_components': args.gmm_components
+            }
+        elif args.clustering_method == "weighted_kmeans":
+            clustering_kwargs = {
+                'n_clusters': args.kmeans_clusters
+            }
+        elif args.clustering_method == "hierarchical":
+            clustering_kwargs = {
+                'n_clusters': args.hierarchical_clusters
+            }
+        elif args.clustering_method == "adaptive_dbscan":
+            clustering_kwargs = {
+                'k': 3,
+                'percentile': 90
+            }
+        elif args.clustering_method == "probability_weighted_dbscan":
+            clustering_kwargs = {
+                'base_eps': args.dbscan_eps,
+                'prob_weight': 0.5,
+                'min_samples': args.dbscan_min_samples
+            }
+        
+        ca_clusters = advanced_clustering(ca_pts, method=args.clustering_method, **clustering_kwargs)
+        n_clusters = advanced_clustering(n_pts, method=args.clustering_method, **clustering_kwargs)
+        c_clusters = advanced_clustering(c_pts, method=args.clustering_method, **clustering_kwargs)
+        
+        # Generate clustering report if requested
+        if args.clustering_report:
+            clustering = AdvancedClusteringMethods()
+            ca_result = clustering.cluster_points(ca_pts, args.clustering_method, **clustering_kwargs)
+            n_result = clustering.cluster_points(n_pts, args.clustering_method, **clustering_kwargs)
+            c_result = clustering.cluster_points(c_pts, args.clustering_method, **clustering_kwargs)
+            
+            with open(args.clustering_report, 'w') as f:
+                f.write("=== Clustering Quality Report ===\n\n")
+                f.write("CA (Carbon Alpha) Atoms:\n")
+                f.write(clustering.get_clustering_report(ca_result))
+                f.write("\n\nN (Nitrogen) Atoms:\n")
+                f.write(clustering.get_clustering_report(n_result))
+                f.write("\n\nC (Carbon) Atoms:\n")
+                f.write(clustering.get_clustering_report(c_result))
+                f.write("\n")
 
-    ca_centroids = centroids_from_clusters(ca_clusters)
-    n_centroids = centroids_from_clusters(n_clusters)
-    c_centroids = centroids_from_clusters(c_clusters)
-
+    ca_centroids = centroids_from_clusters(ca_clusters, args.use_probability_weighting)
+    n_centroids = centroids_from_clusters(n_clusters, args.use_probability_weighting)
+    c_centroids = centroids_from_clusters(c_clusters, args.use_probability_weighting)
 
     write_mrc(ca_centroids, n_centroids, c_centroids, args.reference_map, args.output)
     write_centroid_file(ca_centroids, args.ca_txt)
