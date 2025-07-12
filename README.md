@@ -153,15 +153,53 @@ This script prints the IoU score for each class as well as the average IoU.
 
 ## Clustering Predictions
 The script [utils/cluster_cn_predicted_map.py](utils/cluster_cn_predicted_map.py)
-clusters predicted atom locations into a labeled MRC map. When ``--nms_radius``
-is greater than zero, the program performs non-maximum suppression. The
-``--nms_method`` option chooses between the basic algorithm and a faster
-KD-tree implementation:
+clusters predicted atom locations into a labeled MRC map. The enhanced version now supports
+multiple advanced clustering algorithms for better handling of varying densities and 
+probability-weighted clustering.
+
+### Enhanced Clustering Methods
+
+The new clustering system provides several advanced algorithms:
+
+- **DBSCAN**: Density-based clustering with noise handling
+- **Adaptive DBSCAN**: Automatically estimates optimal parameters
+- **Probability-Weighted DBSCAN**: Uses prediction confidence in clustering
+- **Gaussian Mixture Models**: Probabilistic clustering for overlapping clusters
+- **Weighted K-Means**: Probability-weighted centroid clustering
+- **Hierarchical Clustering**: Agglomerative clustering
+- **Automatic Selection**: Selects best method based on quality metrics
+
+### Usage Examples
 
 ```bash
+# Traditional clustering (backward compatible)
 python3 utils/cluster_cn_predicted_map.py prob.txt map.mrc out.mrc \
-    --nms_radius 1.5 --nms_method kdtree
+    --clustering_method legacy
+
+# Advanced adaptive clustering (recommended)
+python3 utils/cluster_cn_predicted_map.py prob.txt map.mrc out.mrc \
+    --clustering_method adaptive_dbscan \
+    --use_probability_weighting \
+    --clustering_report quality_report.txt
+
+# Automatic method selection
+python3 utils/cluster_cn_predicted_map.py prob.txt map.mrc out.mrc \
+    --clustering_method auto \
+    --use_probability_weighting
+
+# DBSCAN with custom parameters
+python3 utils/cluster_cn_predicted_map.py prob.txt map.mrc out.mrc \
+    --clustering_method dbscan \
+    --dbscan_eps 1.5 \
+    --dbscan_min_samples 3 \
+    --use_probability_weighting
 ```
+
+When ``--nms_radius`` is greater than zero, the program performs non-maximum 
+suppression before clustering. The ``--nms_method`` option chooses between 
+the basic algorithm and a faster KD-tree implementation.
+
+For detailed information about the new clustering methods, see [ENHANCED_CLUSTERING.md](ENHANCED_CLUSTERING.md).
 
 
 

@@ -6,6 +6,13 @@ confidence_score_models: '/content/Cryo2Struct/models' # provide absolute path o
 infer_run_on: 'gpu' # options- cpu or gpu
 infer_on_gpu: 0
 threshold: 0.4 # threshold for picking carbon alpha atoms
-clustering_threshold: 2 # clustering proximity
+clustering_threshold: 2 # clustering proximity (used for legacy clustering)
+clustering_method: 'adaptive_dbscan' # options- legacy, dbscan, gmm, weighted_kmeans, hierarchical, adaptive_dbscan, probability_weighted_dbscan, auto
+dbscan_eps: 2.0 # DBSCAN epsilon parameter
+dbscan_min_samples: 2 # DBSCAN minimum samples parameter
+gmm_components: null # GMM number of components (auto if null)
+kmeans_clusters: null # K-means number of clusters (auto if null)
+hierarchical_clusters: null # Hierarchical clustering number of clusters (auto if null)
+use_probability_weighting: true # use probability-weighted centroids
 use_sequence: 'full' # options- full or atomic_chain
 std_lambda: 10
